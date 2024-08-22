@@ -14,33 +14,31 @@ const Fasta = struct {
 pub fn main() !void {
     defer _ = gpa.deinit();
     var file_buffer: [100]u8 = [_]u8{0} ** 100;
+    var fba = std.heap.FixedBufferAllocator.init(&file_buffer);
+    const fba_allocator = fba.allocator();
+    var file_name: ?[]u8 = null;
     var file: ?std.fs.File = undefined;
-    while (file_buffer[0] == 0) {
+
+    while (file_name == null) {
         print("Please enter a fasta file: ", .{});
-        const error_check = stdin.readUntilDelimiterOrEof(&file_buffer, '\n');
-        if (error_check) |value| {
-            _ = value;
-            file = cwd.openFile(file_buffer[0..dna.substring(&file_buffer, "\n")], .{.mode = .read_only}) catch |err| switch (err) {
+        file_name = stdin.readUntilDelimiterOrEofAlloc(fba_allocator, '\n', 100) catch |err| switch (err) {
+            error.OutOfMemory => block: {
+                print("Error! File name exceeds 100 characters. Condiser renaming it and try again\n", .{});
+                while (clear_stdin() == false) {}
+                break :block null;
+            },
+            else => {return err;} 
+        };
+        if (file_name != null) {
+            file = cwd.openFile(@as([]const u8, file_name.?), .{.mode = .read_only}) catch |err| switch (err) {
                 error.FileNotFound => block: {
-                    print("Error! File entered was not in current folder\nTry moving it and try again\n", .{});
-                    clear_buffer(&file_buffer);
+                    print("Error! File not found in current folder\nAdd it to this folder and try again\n", .{});
+                    fba_allocator.free(file_name.?);
+                    file_name = null;
                     break :block null;
-                }, 
-                else => {return err;},
-            };
-        }
-        else |err| {
-            switch (err) {
-                error.StreamTooLong => {
-                    print("Error! File name exceeds max size of 100 characters. Consider renaming it and try again\n", .{});
-                    var stdin_is_clear: bool = clear_stdin();
-                    while (stdin_is_clear == false) {
-                        stdin_is_clear = clear_stdin();
-                    }
-                    clear_buffer(&file_buffer);
                 },
-                else => {return err;},
-            }
+                else => {return err;}
+            };
         }
     }
     defer file.?.close();
