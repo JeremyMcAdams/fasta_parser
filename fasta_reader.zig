@@ -56,27 +56,36 @@ pub fn main() !void {
     var buffered_reader = std.io.bufferedReader(file.?.reader());
     const reader = buffered_reader.reader();
     var file_line:[200:0]u8 = [_:0]u8{0} ** 200;
+    var file_fba = std.heap.FixedBufferAllocator.init(&file_line);
+    const file_allocator = file_fba.allocator();
+    var line:?[]u8 = reader.readUntilDelimiterOrEofAlloc(file_allocator, '\n', 200) catch |err| switch (err) {
+            error.OutOfMemory => block: { 
+                print("Error! Line in {s} exceeded line size of 200 characters.\n", .{file_name.?});    
+                break :block null;
+            },
+            else => {return err;}
+        };
 
-    while (try reader.readUntilDelimiterOrEof(&file_line, '\n') != null) {
-        const len = dna.substring(&file_line, "\n");
+    while (line != null) {
         //this check is the way it is to decide whether or not a new entry needs to be allocated
-        if ((file_line[0] == '>' or file_line[0] == ';') and fasta[fasta_entries - 1].id == null) {
+        
+        if ((line.?[0] == '>' or line.?[0] == ';') and fasta[fasta_entries - 1].id == null) {
             fasta[fasta_entries - 1].strand = null;
             fasta[fasta_entries - 1].length = 0;
-            fasta[fasta_entries - 1].id = allocator.alloc(u8, len) catch |err| switch (err) {
+            fasta[fasta_entries - 1].id = allocator.alloc(u8, line.?.len) catch |err| switch (err) {
                 error.OutOfMemory => {
                     alloc_error_message();
                     return;
                 }
             };
-            dna.string_copy(&file_line, fasta[fasta_entries - 1].id.?, @intCast(len));
+            dna.string_copy(&file_line, fasta[fasta_entries - 1].id.?, @intCast(line.?.len));
 
         }
         //handles fasta file comments
-        else if ((file_line[0] == '>' or file_line[0] == ';') and fasta[fasta_entries - 1].id != null and fasta[fasta_entries - 1].strand == null) {
+        else if ((line.?[0] == '>' or line.?[0] == ';') and fasta[fasta_entries - 1].id != null and fasta[fasta_entries - 1].strand == null) {
             continue;
         }
-        else if ((file_line[0] == '>' or file_line[0] == ';') and fasta[fasta_entries - 1].id != null and fasta[fasta_entries - 1].strand != null) {
+        else if ((line.?[0] == '>' or line.?[0] == ';') and fasta[fasta_entries - 1].id != null and fasta[fasta_entries - 1].strand != null) {
             print("finished {s}\n", .{fasta[fasta_entries - 1].id.?});
             fasta_entries += 1;
             fasta = allocator.realloc(fasta, fasta_entries) catch |err| switch (err) {
@@ -87,16 +96,16 @@ pub fn main() !void {
             };
             fasta[fasta_entries - 1].strand = null;
             fasta[fasta_entries - 1].length = 0;
-            fasta[fasta_entries - 1].id = allocator.alloc(u8, len) catch |err| switch (err) {
+            fasta[fasta_entries - 1].id = allocator.alloc(u8, line.?.len) catch |err| switch (err) {
                 error.OutOfMemory => {
                     alloc_error_message();
                     return;
                 }       
             };
-            dna.string_copy(&file_line, fasta[fasta_entries - 1].id.?, @intCast(len));
+            dna.string_copy(&file_line, fasta[fasta_entries - 1].id.?, @intCast(line.?.len));
         }
         else {
-            fasta[fasta_entries - 1].length += len;
+            fasta[fasta_entries - 1].length += line.?.len;
             if (fasta[fasta_entries - 1].strand == null) {
                 fasta[fasta_entries - 1].strand = allocator.alloc(u8, fasta[fasta_entries - 1].length) catch |err| switch (err) {
                     error.OutOfMemory => {
@@ -104,7 +113,7 @@ pub fn main() !void {
                         return;
                     }       
                 };
-                dna.string_copy(&file_line, fasta[fasta_entries - 1].strand.?, @intCast(len));
+                dna.string_copy(&file_line, fasta[fasta_entries - 1].strand.?, @intCast(line.?.len));
             }
             else {
                 fasta[fasta_entries - 1].strand = allocator.realloc(fasta[fasta_entries - 1].strand.?, fasta[fasta_entries - 1].length) catch |err| switch (err) {
@@ -113,23 +122,28 @@ pub fn main() !void {
                         return;
                     }
                 };
-                dna.concat(fasta[fasta_entries - 1].strand.?[fasta[fasta_entries - 1].length - len..], &file_line); 
+                dna.concat(fasta[fasta_entries - 1].strand.?[fasta[fasta_entries - 1].length - line.?.len..], &file_line); 
             }
         }
-        clear_buffer(&file_line);
+        file_allocator.free(line.?);
+
+        line = reader.readUntilDelimiterOrEofAlloc(file_allocator, '\n', 200) catch |err| switch (err) {
+            error.OutOfMemory => block: { 
+                print("Error! Line in {s} exceeded line size of 200 characters.\n", .{file_name.?});    
+                break :block null;
+            },
+            else => {return err;}
+        };
     }
     for (0..fasta_entries) |i| {
         print("{s}\n", .{fasta[i].id.?});
-        print("{s}\n", .{fasta[i].strand.?});
+        var count:usize = 0;
+        while (count < fasta[i].length - 70) : (count += 70) {
+            print("{s}\n", .{fasta[i].strand.?[count..count + 70]});
+        }
+        print("{s}\n", .{fasta[i].strand.?[count..]});
     }
     deinit_fasta(fasta, fasta_entries);
-}
-
-fn clear_buffer(buffer:[]u8) void {
-    for (0..buffer.len) |i| {
-        if (buffer[i] == 0) {break;}
-        buffer[i] = 0;
-    }
 }
 
 fn clear_stdin() bool {
@@ -152,5 +166,4 @@ fn deinit_fasta(self:[]Fasta, size:usize) void {
 fn alloc_error_message() void {
     print("Error. Not enough free RAM to finish program\nConsider closing some applications and trying again\n", .{});
 }
-
 
