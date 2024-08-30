@@ -160,6 +160,7 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
             return null; 
         }    
     };
+    var start_translation:bool = false;
     var current_max_size:usize = 100;
     var amino_acid_index:usize = 0;
     var strand_index:usize = 0;
@@ -171,70 +172,74 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
     //<<2  0000 0100   0000 1100   0001 1100   0101 0000   0101 0100
     //>>3  0000 0000   0000 0001   0000 0011   0000 1010   0000 1010  <- Unique encoding values. Notice how T and U are equal. This is what lets it work for both
         const key = (((codon[0] << 2) >> 3) << 4) + (((codon[1] << 2) >> 3) << 2) + ((codon[2] << 2) >> 3);
-        switch (key) {
-            52, 53, 55, 62 =>{
-                protein.?[amino_acid_index] = 'A';     
-            }, //Alanine A
-            173, 182 => {
-                protein.?[amino_acid_index] = 'C'; 
-            },//Cysteine C
-            49, 58 => {
-                protein.?[amino_acid_index] = 'D'; 
-            },//Aspartic acid D
-            48, 51 => {
-                protein.?[amino_acid_index] = 'E'; 
-            },//Glutamic acid E
-            201, 210 =>{
-                protein.?[amino_acid_index] = 'F';
-            }, //Phenylalanine F
-            60, 61, 63, 70 =>{
-                protein.?[amino_acid_index] = 'G'; 
-            }, //Glycine G
-            17, 26 => {
-                protein.?[amino_acid_index] = 'H'; 
-            },//Histidine H
-            40, 41, 50 =>{
-                protein.?[amino_acid_index] = 'I'; 
-            }, //Isoleucine I            
-            0, 3 => {
-                protein.?[amino_acid_index] = 'K'; 
-            },//Lysine K
-            56, 57, 59, 66, 200, 203 => {
-                protein.?[amino_acid_index] = 'L'; 
-            },//Leucine L
-            43 => {
-                protein.?[amino_acid_index] = 'M'; 
-            },//Methionine M
-            1, 10 => {
-                protein.?[amino_acid_index] = 'N'; 
-            },//Asparagine N
-            20, 21, 23, 30 => {
-                protein.?[amino_acid_index] = 'P'; 
-            },//proline P
-            16, 19 => {
-                protein.?[amino_acid_index] = 'Q'; 
-            },//Glutamine Q
-            12, 15, 28, 29, 31, 38 => {
-                protein.?[amino_acid_index] = 'R'; 
-            },//Arginine R
-            13, 22, 164, 165, 167, 174 =>{
-                protein.?[amino_acid_index] = 'S'; 
-            }, //Serine S
-            4, 5, 7, 14 => {
-                protein.?[amino_acid_index] = 'T'; 
-            },//Threonine T
-            88, 89, 91, 98 => {
-                protein.?[amino_acid_index] = 'V'; 
-            },//Valine
-            175 => {
-                protein.?[amino_acid_index] = 'W'; 
-            },//Tryptophan W
-            161, 170 => {
-                protein.?[amino_acid_index] = 'Y'; 
-            },//Tyrosine Y
-            else => {
-                break; 
-            },
+            
+        if (key == 43) {start_translation = true;} 
+        if (start_translation == true) {
+            switch (key) {
+                52, 53, 55, 62 =>{
+                    protein.?[amino_acid_index] = 'A';     
+                }, //Alanine A
+                173, 182 => {
+                    protein.?[amino_acid_index] = 'C'; 
+                },//Cysteine C
+                49, 58 => {
+                    protein.?[amino_acid_index] = 'D'; 
+                },//Aspartic acid D
+                48, 51 => {
+                    protein.?[amino_acid_index] = 'E'; 
+                },//Glutamic acid E
+                201, 210 =>{
+                    protein.?[amino_acid_index] = 'F';
+                }, //Phenylalanine F
+                60, 61, 63, 70 =>{
+                    protein.?[amino_acid_index] = 'G'; 
+                }, //Glycine G
+                17, 26 => {
+                    protein.?[amino_acid_index] = 'H'; 
+                },//Histidine H
+                40, 41, 50 =>{
+                    protein.?[amino_acid_index] = 'I'; 
+                }, //Isoleucine I            
+                0, 3 => {
+                    protein.?[amino_acid_index] = 'K'; 
+                },//Lysine K
+                56, 57, 59, 66, 200, 203 => {
+                    protein.?[amino_acid_index] = 'L'; 
+                },//Leucine L
+                43 => {
+                    protein.?[amino_acid_index] = 'M'; 
+                },//Methionine M
+                1, 10 => {
+                    protein.?[amino_acid_index] = 'N'; 
+                },//Asparagine N
+                20, 21, 23, 30 => {
+                    protein.?[amino_acid_index] = 'P'; 
+                },//proline P
+                16, 19 => {
+                    protein.?[amino_acid_index] = 'Q'; 
+                },//Glutamine Q
+                12, 15, 28, 29, 31, 38 => {
+                    protein.?[amino_acid_index] = 'R'; 
+                },//Arginine R
+                13, 22, 164, 165, 167, 174 =>{
+                    protein.?[amino_acid_index] = 'S'; 
+                }, //Serine S
+                4, 5, 7, 14 => {
+                    protein.?[amino_acid_index] = 'T'; 
+                },//Threonine T
+                88, 89, 91, 98 => {
+                    protein.?[amino_acid_index] = 'V'; 
+                },//Valine
+                175 => {
+                    protein.?[amino_acid_index] = 'W'; 
+                },//Tryptophan W
+                161, 170 => {
+                    protein.?[amino_acid_index] = 'Y'; 
+                },//Tyrosine Y
+                else => {
+                    break; 
+                },
+            }
         }
 
         amino_acid_index += 1;
