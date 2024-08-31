@@ -171,7 +171,7 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
     //Ex A 0100 0001 C 0100 0011 G 0100 0111 T 0101 0100 U 0101 0101
     //<<2  0000 0100   0000 1100   0001 1100   0101 0000   0101 0100
     //>>3  0000 0000   0000 0001   0000 0011   0000 1010   0000 1010  <- Unique encoding values. Notice how T and U are equal. This is what lets it work for both
-        const key = (((codon[0] << 2) >> 3) << 4) + (((codon[1] << 2) >> 3) << 2) + ((codon[2] << 2) >> 3);
+        const key = (((codon[0] << 3) >> 4) << 4) + (((codon[1] << 3) >> 4) << 2) + ((codon[2] << 3) >> 4);
             
         if (key == 43) {start_translation = true;} 
         if (start_translation == true) {
