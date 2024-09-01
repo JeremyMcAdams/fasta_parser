@@ -167,10 +167,10 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
     while (strand_index < strand.len) : (strand_index += 3) {
         const codon = strand[strand_index..strand_index + 3];
     //This does some bit shifting to convert each codon to a unique value. This conversion method makes it DNA-RNA agnostic.
-    //Internal << 2 shift kicks off the most significant bit all values hold in common and then >> 3 reduces the bits to the smallest unique sets with the same operations
-    //Ex A 0100 0001 C 0100 0011 G 0100 0111 T 0101 0100 U 0101 0101
-    //<<2  0000 0100   0000 1100   0001 1100   0101 0000   0101 0100
-    //>>3  0000 0000   0000 0001   0000 0011   0000 1010   0000 1010  <- Unique encoding values. Notice how T and U are equal. This is what lets it work for both
+    //Internal << 3 shift kicks off the most significant bit all values hold in common and then >> 4 reduces the bits to the smallest unique sets with the same operations
+    //Ex A 0100 0001 a 0110 0001 C 0100 0011 c 0110 0011 G 0100 0111 g 0110 0111 T 0101 0100 t 0111 0100 U 0101 0101 u 0111 0101 
+    //<<3  0000 1000   0000 1000   0001 1000   0001 1000   0011 1000   0011 1000   1010 0000   1010 0000   1010 1000   1010 1000
+    //>>4  0000 0000   0000 0000   0000 0001   0000 0001   0000 0011   0000 0011   0000 1010   0000 1010   0000 1010   0000 1010 <- Unique encoding values. Notice how T and U are equal. This is what lets it work for both
         const key = (((codon[0] << 3) >> 4) << 4) + (((codon[1] << 3) >> 4) << 2) + ((codon[2] << 3) >> 4);
             
         if (key == 43) {start_translation = true;} 
@@ -240,17 +240,17 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
                     break; 
                 },
             }
-        }
 
-        amino_acid_index += 1;
-        if (amino_acid_index == current_max_size) {
-            current_max_size *= 2;
-            protein = allocator.realloc(protein.?, current_max_size) catch |err| switch (err) {
-                error.OutOfMemory => {
-                    allocator.free(protein.?);
-                    return null;
-                }    
-            };
+            amino_acid_index += 1;
+            if (amino_acid_index == current_max_size) {
+                current_max_size *= 2;
+                protein = allocator.realloc(protein.?, current_max_size) catch |err| switch (err) {
+                    error.OutOfMemory => {
+                        allocator.free(protein.?);
+                        return null;
+                    }    
+                };
+            }
         }
     }
     if(allocator.resize(protein.?, amino_acid_index)) {
