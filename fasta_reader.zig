@@ -4,12 +4,9 @@ const cwd = std.fs.cwd();
 const print = std.debug.print;
 const dna = @import("dna_functions.zig");
 
-pub const Fasta = struct {
-    id:?[]u8,
-    strand:?[]u8,
-    length:u64,
-};
-pub fn parse_fasta(allocator: std.mem.Allocator, array_list: *std.ArrayList(u64)) ?[]u8 {
+pub fn parse_fasta(allocator: std.mem.Allocator, entries: *?[]u64) ?[]u8 {
+    var array_list = std.ArrayList(u64).init(allocator);
+    defer array_list.deinit();
     var file_buffer: [100]u8 = [_]u8{0} ** 100;
     var fba = std.heap.FixedBufferAllocator.init(&file_buffer);
     const fba_allocator = fba.allocator();
@@ -96,6 +93,7 @@ pub fn parse_fasta(allocator: std.mem.Allocator, array_list: *std.ArrayList(u64)
     if (allocator.resize(file_contents, index)) {
         file_contents = file_contents[0..index];
     }
+    entries.* = array_list.toOwnedSlice() catch |err| switch (err) {error.OutOfMemory => block: {break :block null;}};
     return file_contents;
 }
 

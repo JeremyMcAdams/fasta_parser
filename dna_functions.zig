@@ -1,7 +1,4 @@
-//inverts the string character order
 const std = @import("std");
-const print = std.debug.print;
-const eql = std.mem.eql;
 pub fn flip_string(string: []u8) void{
     const halfway = @divFloor(string.len, 2);
     for (0..halfway) |i| {
@@ -21,7 +18,17 @@ pub fn reverse_copy(string: []u8, destination: []u8) void {
         destination[string.len - index - 1] = letter;
     }
 }
-
+pub fn rna_to_dna(rna_strand:[]const u8, dna_strand:[]u8) void {
+    for (0..rna_strand.len) |i| {
+        switch (rna_strand[i]) {
+            'A' => dna_strand[i] = 'A',
+            'U' => dna_strand[i] = 'T',
+            'G' => dna_strand[i] = 'G',
+            'C' => dna_strand[i] = 'C',
+            else => unreachable,
+        }
+    }
+}
 //returns the beginning integer of a slice value in the character array
 pub fn substring(string:[]const u8, sub:[]const u8) u64 {
     var sub_start:u32 = 0;
@@ -60,10 +67,8 @@ pub fn substring_iterate(string:[]const u8, sub:[]const u8, locs:[]u64) void {
                     return;
                 }
                 if (j == sub.len or sub[j] == 0){
-                    print("EOL\n", .{});
                     locs[sub_loc] = sub_start;
                     sub_loc += 1;
-                    print("{d}: {s}\n", .{sub_start, string[sub_start..sub_start + 9]});
                     break;
                 }
             }
@@ -105,11 +110,13 @@ pub fn substring_count(string:[]const u8, sub:[]const u8) u64 {
     return count;
 }
 
-pub fn find_substrings(string:[]const u8, sub:[]const u8, locations:[]u64) void {
-    var count:u64 = 0;
+pub fn find_substrings(string:[]const u8, sub:[]const u8, allocator: std.mem.Allocator) ?[]u64 {
     var sub_start:u64 = 0;
     var j:u32 = 0;
     var i:u32 = 0;
+    var locations:std.ArrayList(u64) = std.ArrayList(u64).init(allocator);
+    defer locations.deinit();
+    errdefer locations.deinit();
     for(0..string.len) |index| {
         if (string[index] == 0){break;}
         if (string[index] == sub[0]){
@@ -118,29 +125,38 @@ pub fn find_substrings(string:[]const u8, sub:[]const u8, locations:[]u64) void 
             while(string[i] == sub[j]) : (i += 1){
                 j += 1;
                 if (j == sub.len){
-                    locations[count] = sub_start;
-                    if (count == locations.len){
-                        return;
-                    }
-                    count += 1;
+                    locations.append(sub_start) catch |err| switch (err) {
+                        error.OutOfMemory => {
+                            return null;
+                        }
+                    };
                     break;
                 }
+                if (i == string.len - 1) { break;}
             }
         }
         j = 0;
     }
+    return locations.toOwnedSlice() catch |err| switch (err) {
+        error.OutOfMemory => block: {
+            break :block  null;
+        }
+    };
 }
 
-pub fn generate_comp_strand(string:[]const u8, comp_strand:[]u8) void {
-    for (string, 0..string.len) |base, number| {
+pub fn generate_comp_strand(string:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
+    var comp_strand = std.ArrayList(u8).init(allocator);
+    defer comp_strand.deinit();
+    for (string) |base| {
         switch (base) {
-            'A' => {comp_strand[number] = 'T';},
-            'T' => {comp_strand[number] = 'A';},
-            'G' => {comp_strand[number] = 'C';},
-            'C' => {comp_strand[number] = 'G';},
-            else => {comp_strand[number] = 0;}
+            'A' => {comp_strand.append('T') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'T' => {comp_strand.append('A') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'G' => {comp_strand.append('C') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'C' => {comp_strand.append('G') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            else => {return null;}
         }
     }
+    return comp_strand.toOwnedSlice() catch |err| switch (err) {error.OutOfMemory => block: { break :block null;}};
 }
 
 pub fn concat(destination: []u8, source: []const u8) void {
@@ -164,7 +180,8 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
     var current_max_size:usize = 100;
     var amino_acid_index:usize = 0;
     var strand_index:usize = 0;
-    while (strand_index < strand.len) : (strand_index += 3) {
+    var stop_found:bool = false;
+    while (strand_index < strand.len - 3) : (strand_index += 3) {
         const codon = strand[strand_index..strand_index + 3];
     //This does some bit shifting to convert each codon to a unique value. This conversion method makes it DNA-RNA agnostic.
     //Internal << 3 shift kicks off the most significant bit all values hold in common and then >> 4 reduces the bits to the smallest unique sets with the same operations
@@ -237,6 +254,7 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
                     protein.?[amino_acid_index] = 'Y'; 
                 },//Tyrosine Y
                 else => {
+                    stop_found = true;
                     break; 
                 },
             }
@@ -253,7 +271,11 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
             }
         }
     }
-    if(allocator.resize(protein.?, amino_acid_index)) {
+    if (stop_found == false) {
+        allocator.free(protein.?);
+        return null;
+    }
+    if(allocator.resize(protein.?, amino_acid_index) == true) {
         protein = protein.?[0..amino_acid_index];
     }
     return protein.?;
