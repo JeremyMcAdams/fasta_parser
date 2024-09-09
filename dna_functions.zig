@@ -1,4 +1,7 @@
 const std = @import("std");
+const log10 = std.math.log10;
+const log = std.math.log;
+const e = std.math.e;
 pub fn flip_string(string: []u8) void{
     const halfway = @divFloor(string.len, 2);
     for (0..halfway) |i| {
@@ -22,9 +25,13 @@ pub fn rna_to_dna(rna_strand:[]const u8, dna_strand:[]u8) void {
     for (0..rna_strand.len) |i| {
         switch (rna_strand[i]) {
             'A' => dna_strand[i] = 'A',
+            'a' => dna_strand[i] = 'a',
             'U' => dna_strand[i] = 'T',
+            'u' => dna_strand[i] = 't',
             'G' => dna_strand[i] = 'G',
+            'g' => dna_strand[i] = 'g',
             'C' => dna_strand[i] = 'C',
+            'c' => dna_strand[i] = 'c',
             else => unreachable,
         }
     }
@@ -150,9 +157,13 @@ pub fn generate_comp_strand(string:[]const u8, allocator: std.mem.Allocator) ?[]
     for (string) |base| {
         switch (base) {
             'A' => {comp_strand.append('T') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'a' => {comp_strand.append('t') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
             'T' => {comp_strand.append('A') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            't' => {comp_strand.append('a') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
             'G' => {comp_strand.append('C') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'g' => {comp_strand.append('c') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
             'C' => {comp_strand.append('G') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'c' => {comp_strand.append('g') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
             else => {return null;}
         }
     }
@@ -279,4 +290,82 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
         protein = protein.?[0..amino_acid_index];
     }
     return protein.?;
+}
+
+pub fn simple_melting_point(strand:[]u8) u8 {
+    var melt_point:usize = 0;
+    for (strand) |i| {
+        switch (i) {
+            'A', 'a' => melt_point += 2,
+            'T', 't' => melt_point += 2,
+            'G', 'g' => melt_point += 4,
+            'C', 'c' => melt_point += 4,
+            else => unreachable,
+        }
+    }
+}
+
+pub fn nearest_neighbor_melting_point(strand:[]const u8) f64 {
+    var heat_enthalpy:f64 = 0;
+    var entropy:f64 = 0;
+    const zero_K_in_C:f64 = -273.15;
+    const A:f64 = -0.0108;
+    const gas_constant:f64 = 0.00199;
+    const monovalent_cations:f64 = 0.05;
+    const primer_concentration:f64 = 0.0000005;
+    for (0..strand.len) |i| {
+        if (i < 1) continue;
+        const neighbor_value = (((strand[i-1] << 3) >> 4) << 2) + ((strand[i] << 3) >> 4);
+        switch(neighbor_value) {
+            0, 50  => { // AA TT
+                heat_enthalpy -= 9.1;
+                entropy -= 0.0240;
+            },
+            10 => { //AT
+                heat_enthalpy -= 8.6;
+                entropy -= 0.0239;
+            },
+            40 => { //TA
+                heat_enthalpy -= 6;
+                entropy -= 0.0169;
+            },
+            4, 43 => { //CA TG
+                heat_enthalpy -= 5.8;
+                entropy -= 0.0129;
+            },
+            22, 1 => { //GT AC
+                heat_enthalpy -= 6.5;
+                entropy -= 0.0173;
+            },
+            14, 3 => { //CT AG
+                heat_enthalpy -= 7.8;
+                entropy -= 0.0208;
+            },
+            12, 41 => { //GA TC
+                heat_enthalpy -= 5.6;
+                entropy -= 0.0135;
+            },
+            7 => { //CG
+                heat_enthalpy -= 11.9;
+                entropy -= 0.0278;
+            },
+            13 => { //GC
+                heat_enthalpy -= 11.1;
+                entropy -= 0.0267;
+            },
+            15, 5 => {
+                heat_enthalpy -= 11;
+                entropy -= 0.0266;
+            },
+            else => unreachable,
+        } 
+    }
+    const Tm = (heat_enthalpy / (A + entropy + gas_constant * log(f64, e, (primer_concentration/4)))) + zero_K_in_C + 16.6 * log10(monovalent_cations);
+    return Tm;
+}
+test "Melt point test" {
+    const strand = "AAAAACCCCCGGGGGTTTTT";
+    const Tm = nearest_neighbor_melting_point(strand);
+    std.debug.print("{d}\n", .{Tm});
+    try std.testing.expect(Tm > 65.7 and Tm < 74.7);
 }
