@@ -17,7 +17,7 @@ pub fn parse_fasta(allocator: std.mem.Allocator, entries: *?[]u64) ?[]u8 {
         print("Please enter a fasta file: ", .{});
         file_name = stdin.readUntilDelimiterOrEofAlloc(fba_allocator, '\n', 100) catch |err| switch (err) {
             error.OutOfMemory => block: {
-                print("Error! File name exceeds 100 characters. Condiser renaming it and try again\n", .{});
+                print("Error! File name exceeds 100 characters. Consider renaming it and try again\n", .{});
                 while (clear_stdin() == false) {}
                 break :block null;
             },
