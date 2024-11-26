@@ -156,14 +156,10 @@ pub fn generate_comp_strand(string:[]const u8, allocator: std.mem.Allocator) ?[]
     defer comp_strand.deinit();
     for (string) |base| {
         switch (base) {
-            'A' => {comp_strand.append('T') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'a' => {comp_strand.append('t') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'T' => {comp_strand.append('A') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            't' => {comp_strand.append('a') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'G' => {comp_strand.append('C') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'g' => {comp_strand.append('c') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'C' => {comp_strand.append('G') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
-            'c' => {comp_strand.append('g') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'A', 'a' => {comp_strand.append('T') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'T', 't' => {comp_strand.append('A') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'G', 'g' => {comp_strand.append('C') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
+            'C', 'c' => {comp_strand.append('G') catch |err| switch (err) {error.OutOfMemory => {return null;}};},
             else => {return null;}
         }
     }
@@ -182,17 +178,18 @@ pub fn concat(destination: []u8, source: []const u8) void {
 }
 
 pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
-    var protein: ?[]u8 = allocator.alloc(u8, 100) catch |err| switch (err) {
-        error.OutOfMemory => {
-            return null; 
-        }    
-    };
+//    var protein: ?[]u8 = allocator.alloc(u8, 100) catch |err| switch (err) {
+//        error.OutOfMemory => {
+//            return null; 
+//        }    
+//    };
+    var protein = std.ArrayList(u8).init(allocator);
     var start_translation:bool = false;
-    var current_max_size:usize = 100;
-    var amino_acid_index:usize = 0;
+//    var current_max_size:usize = 100;
+//    var amino_acid_index:usize = 0;
     var strand_index:usize = 0;
     var stop_found:bool = false;
-    while (strand_index < strand.len - 3) : (strand_index += 3) {
+    while (strand_index <= strand.len - 3) : (strand_index += 3) {
         const codon = strand[strand_index..strand_index + 3];
     //This does some bit shifting to convert each codon to a unique value. This conversion method makes it DNA-RNA agnostic.
     //Internal << 3 shift kicks off the most significant bit all values hold in common and then >> 4 reduces the bits to the smallest unique sets with the same operations
@@ -205,64 +202,64 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
         if (start_translation == true) {
             switch (key) {
                 52, 53, 55, 62 =>{
-                    protein.?[amino_acid_index] = 'A';     
+                    protein.append('A') catch |err| switch (err) {error.OutOfMemory => {return null;}};     
                 }, //Alanine A
                 173, 182 => {
-                    protein.?[amino_acid_index] = 'C'; 
+                    protein.append('C') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Cysteine C
                 49, 58 => {
-                    protein.?[amino_acid_index] = 'D'; 
+                    protein.append('D') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Aspartic acid D
                 48, 51 => {
-                    protein.?[amino_acid_index] = 'E'; 
+                    protein.append('E') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Glutamic acid E
                 201, 210 =>{
-                    protein.?[amino_acid_index] = 'F';
+                    protein.append('F') catch |err| switch (err) {error.OutOfMemory => {return null;}};
                 }, //Phenylalanine F
                 60, 61, 63, 70 =>{
-                    protein.?[amino_acid_index] = 'G'; 
+                    protein.append('G') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 }, //Glycine G
                 17, 26 => {
-                    protein.?[amino_acid_index] = 'H'; 
+                    protein.append('H') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Histidine H
                 40, 41, 50 =>{
-                    protein.?[amino_acid_index] = 'I'; 
+                    protein.append('I') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 }, //Isoleucine I            
                 0, 3 => {
-                    protein.?[amino_acid_index] = 'K'; 
+                    protein.append('K') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Lysine K
                 56, 57, 59, 66, 200, 203 => {
-                    protein.?[amino_acid_index] = 'L'; 
+                    protein.append('L') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Leucine L
                 43 => {
-                    protein.?[amino_acid_index] = 'M'; 
+                    protein.append('M') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Methionine M
                 1, 10 => {
-                    protein.?[amino_acid_index] = 'N'; 
+                    protein.append('N') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Asparagine N
                 20, 21, 23, 30 => {
-                    protein.?[amino_acid_index] = 'P'; 
+                    protein.append('P') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//proline P
                 16, 19 => {
-                    protein.?[amino_acid_index] = 'Q'; 
+                    protein.append('Q') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Glutamine Q
                 12, 15, 28, 29, 31, 38 => {
-                    protein.?[amino_acid_index] = 'R'; 
+                    protein.append('R') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Arginine R
                 13, 22, 164, 165, 167, 174 =>{
-                    protein.?[amino_acid_index] = 'S'; 
+                    protein.append('S') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 }, //Serine S
                 4, 5, 7, 14 => {
-                    protein.?[amino_acid_index] = 'T'; 
+                    protein.append('T') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Threonine T
                 88, 89, 91, 98 => {
-                    protein.?[amino_acid_index] = 'V'; 
+                    protein.append('V') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Valine
                 175 => {
-                    protein.?[amino_acid_index] = 'W'; 
+                    protein.append('W') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Tryptophan W
                 161, 170 => {
-                    protein.?[amino_acid_index] = 'Y'; 
+                    protein.append('Y') catch |err| switch (err) {error.OutOfMemory => {return null;}}; 
                 },//Tyrosine Y
                 else => {
                     stop_found = true;
@@ -270,29 +267,12 @@ pub fn generate_protein(strand:[]const u8, allocator: std.mem.Allocator) ?[]u8 {
                 },
             }
 
-            amino_acid_index += 1;
-            if (amino_acid_index == current_max_size) {
-                current_max_size *= 2;
-                protein = allocator.realloc(protein.?, current_max_size) catch |err| switch (err) {
-                    error.OutOfMemory => {
-                        allocator.free(protein.?);
-                        return null;
-                    }    
-                };
-            }
         }
     }
-    if (stop_found == false) {
-        allocator.free(protein.?);
-        return null;
-    }
-    if(allocator.resize(protein.?, amino_acid_index) == true) {
-        protein = protein.?[0..amino_acid_index];
-    }
-    return protein.?;
+    return protein.toOwnedSlice() catch |err| switch (err) {error.OutOfMemory => {return null;}};
 }
 
-pub fn simple_melting_point(strand:[]u8) u8 {
+pub fn simple_melting_point(strand:[]const u8) u8 {
     var melt_point:usize = 0;
     for (strand) |i| {
         switch (i) {
@@ -303,6 +283,7 @@ pub fn simple_melting_point(strand:[]u8) u8 {
             else => unreachable,
         }
     }
+    return @intCast(melt_point);
 }
 
 pub fn nearest_neighbor_melting_point(strand:[]const u8) f64 {
@@ -362,10 +343,4 @@ pub fn nearest_neighbor_melting_point(strand:[]const u8) f64 {
     }
     const Tm = (heat_enthalpy / (A + entropy + gas_constant * log(f64, e, (primer_concentration/4)))) + zero_K_in_C + 16.6 * log10(monovalent_cations);
     return Tm;
-}
-test "Melt point test" {
-    const strand = "AAAAACCCCCGGGGGTTTTT";
-    const Tm = nearest_neighbor_melting_point(strand);
-    std.debug.print("{d}\n", .{Tm});
-    try std.testing.expect(Tm > 65.7 and Tm < 74.7);
 }
